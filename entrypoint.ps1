@@ -41,8 +41,14 @@ if ($null -eq $reprocessing.suppliers -or $reprocessing.suppliers.Count -le 0) {
     continue
 }
 else {
-    # Invoke-MiddlewareTriggerCancellation -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth | Out-Null
-    # Invoke-ProductOrderMiddlewareTrigger -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth -ProductOrders $reprocessing.productOrders | Out-Null
+    Invoke-MiddlewareTriggerCancellation -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth | Out-Null
+
     Invoke-SupplierMiddlewareTrigger -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth -Suppliers $reprocessing.suppliers | Out-Null
+    
+    $waitTime = $reprocessing.suppliers.Count * 3
+    Write-Host "Waiting for $waitTime seconds to allow the middleware to process the suppliers..." -ForegroundColor Yellow
+    Start-Sleep -Seconds $waitTime
+    
+    Invoke-ProductOrderMiddlewareTrigger -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth -ProductOrders $reprocessing.productOrders | Out-Null
 }
 
