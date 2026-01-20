@@ -65,7 +65,7 @@ function ConvertTo-LogsObject {
 
 function Sync-LocallyLogReport {
     param (
-        
+        $PastDays = 1,
         $WorkspaceId,
         $SyncedEntities
     )

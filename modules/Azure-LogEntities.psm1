@@ -1,14 +1,15 @@
 function Get-AllSyncedEntities {
     param (
         [string]$WorkspaceId,
-        [int]$PastDays = 1
+        [int]$PastDays = 1,
+        [string]$Environment
     )
 
-    if (($null -ne $globalConfigs.pastLogDays) -and ($globalConfigs.pastLogDays -gt 0)) {
-        $PastDays = $globalConfigs.pastLogDays
+    if ([String]::IsNullOrEmpty($Environment)) {
+        throw "Environment parameter is required to fetch synced entities."
     }
 
-    #TODO: Add past days arg support!
+    Write-Host "Fetching all synced entities from Log Analytics Workspace for $($Environment)" -ForegroundColor Cyan
 
     $todayDate = [datetime]::now.AddDays(1).ToString("yyyy-MM-dd");
 
@@ -18,7 +19,7 @@ function Get-AllSyncedEntities {
     AppRequests 
     | where TimeGenerated >= date($pastDate) and TimeGenerated < datetime($todayDate)
     | where Name == "SyncEntities"
-    | where AppRoleName == '$($globalConfigs.logsFromEnvironment)'
+    | where AppRoleName == '$($Environment)'
     | where Success == true
     | order by TimeGenerated desc 
     | project 
@@ -31,10 +32,13 @@ function Get-AllSyncedEntities {
         Properties.['InvocationId']
 "@
 
-    $query = Invoke-AzOperationalInsightsQuery -WorkspaceId $WorkspaceId -Query $KqlQuery
+    $query = Invoke-AzOperationalInsightsQuery -WorkspaceId $WorkspaceId -Query $KqlQuery -Verbose
+
+    Write-Host "Executed KQL Query to get all synced entities." -ForegroundColor Green
 
     if ($null -eq $query) {
         $query = Invoke-AzOperationalInsightsQuery -WorkspaceId $WorkspaceId -Query $KqlQuery -Debug
+        Write-Host "Re-executed KQL Query to get all synced entities with Debug." -ForegroundColor Yellow
     }
 
     return $query.Results;
@@ -45,12 +49,8 @@ function Get-AllLogsFromSyncedEntities {
         [string]$WorkspaceId,
         [string]$OperationId,
         [string]$InvocationId,
-        [Int]$PastDays = 1
+        [Int]$PastDays = 365
     )
-
-    if (($null -ne $globalConfigs.pastLogDays) -and ($globalConfigs.pastLogDays -gt 0)) {
-        $PastDays = $globalConfigs.pastLogDays
-    }
 
     $KqlQuery = @"
    union AppTraces

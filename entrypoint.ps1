@@ -22,17 +22,18 @@ if ((Test-Path -Path $configFilePath) -eq $false) {
 
 $globalConfigs = Get-Content -Path $configFilePath -Raw | ConvertFrom-Json
 
-##TODO: add if to verify modules/dependencies!!
-
 Connect-AzurePortal -AzureSubscriptionId $globalConfigs.AzSubscriptionId -UseWamLogin | Out-Null
 
 $resourceGroup = Select-PortalAzureResourceGroup -SubscriptionId $globalConfigs.AzSubscriptionId -ResourceGroupName $globalConfigs.AzResourceGroupName
-# $resourceGroup = Select-PortalAzureResourceGroup -SubscriptionId $globalConfigs.AzSubscriptionId
 
 $InsightsWorkspaces = Get-AzOperationalInsightsWorkspace -ResourceGroupName $resourceGroup.ResourceGroupName
 $WorkspaceId = $InsightsWorkspaces.CustomerId.ToString()
 
-$syncedEntities = Get-AllSyncedEntities -WorkspaceId $WorkspaceId
+Write-Host "Using Log Analytics Workspace ID: $WorkspaceId" -ForegroundColor Cyan
+
+$syncedEntities = Get-AllSyncedEntities -WorkspaceId $WorkspaceId -PastDays $globalConfigs.pastLogDays -Environment $globalConfigs.logsFromEnvironment
+
+Write-Host "Total synced entities found: $($syncedEntities.Count)" -ForegroundColor Cyan
 
 $reprocessing = Sync-LocallyLogReport -WorkspaceId $WorkspaceId -SyncedEntities $syncedEntities
 
