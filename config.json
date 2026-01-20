@@ -1,0 +1,7 @@
+{
+    "logsFromEnvironment": "",    
+    "pastLogDays": 30,
+    "middlewareInvocationCodeAuth": "",
+    "AzSubscriptionId": "",
+    "AzResourceGroup": ""
+}
