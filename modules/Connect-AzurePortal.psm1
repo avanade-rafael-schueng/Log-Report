@@ -30,11 +30,12 @@ function Connect-AzurePortal {
 
     $tenantId = "d64db29c-619b-40bb-ab31-1a70675dac44"
     $appId = "63ce3277-31f3-4be5-b0b3-5957fc9b16cd"
-    $password = "seu-client-secret" | ConvertTo-SecureString -AsPlainText -Force
+    $password = "client-secret" | ConvertTo-SecureString -AsPlainText -Force
 
     $cred = New-Object System.Management.Automation.PSCredential($appId, $password)
 
     # Conecta de forma não interativa
     Connect-AzAccount -ServicePrincipal -Credential $cred -Tenant $tenantId
 
+    return $true
 }
