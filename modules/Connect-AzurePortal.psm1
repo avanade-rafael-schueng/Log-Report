@@ -5,7 +5,11 @@ function Connect-AzurePortal {
         [string]$AzureSubscriptionId,
 
         [Parameter(Mandatory = $false)]
-        [switch]$UseWamLogin
+        [switch]$UseWamLogin,
+
+        [string]$TenantId,
+        [string]$AppId,
+        [string]$AppSecret
     )
 
     if ($UseWamLogin -eq $true) {
@@ -28,14 +32,16 @@ function Connect-AzurePortal {
 
     Write-Host "Connecting to Azure Portal using Device Code Authentication..." -ForegroundColor Green
 
-    $tenantId = "d64db29c-619b-40bb-ab31-1a70675dac44"
-    $appId = "63ce3277-31f3-4be5-b0b3-5957fc9b16cd"
-    $password = "client-secret" | ConvertTo-SecureString -AsPlainText -Force
+    $tenantId = $TenantId
+    $appId = $AppId
+    $password = $AppSecret | ConvertTo-SecureString -AsPlainText -Force
 
     $cred = New-Object System.Management.Automation.PSCredential($appId, $password)
 
     # Conecta de forma não interativa
-    Connect-AzAccount -ServicePrincipal -Credential $cred -Tenant $tenantId
+    Connect-AzAccount -Credential $cred -Tenant $tenantId -ServicePrincipal
+
+    Set-AzContext -SubscriptionId $AzureSubscriptionId | Out-Null  
 
     return $true
 }

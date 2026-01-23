@@ -8,12 +8,11 @@ Import-Module "./modules/Save-Files.psm1" -Verbose
 
 Import-Module -Name ImportExcel -Verbose
 
-if (Get-Module -ListAvailable -Name ImportExcel) {
-    Write-Host "ImportExcel is installed." -ForegroundColor Green
+if (-not (Get-Module -ListAvailable -Name ImportExcel)) {
+    Write-Error "ImportExcel is no installed." 
+    throw "Please, install the ImportExcel module by running: Install-Module -Name ImportExcel -Scope CurrentUser -Force"
 }
-else {
-    Write-Host "ImportExcel is NOT installed." -ForegroundColor Red
-}
+
 
 $configFilePath = Get-ChildItem -Path "./config.vale.json"
 if ((Test-Path -Path $configFilePath) -eq $false) {
@@ -22,7 +21,7 @@ if ((Test-Path -Path $configFilePath) -eq $false) {
 
 $globalConfigs = Get-Content -Path $configFilePath -Raw | ConvertFrom-Json
 
-Connect-AzurePortal -AzureSubscriptionId $globalConfigs.AzSubscriptionId -UseWamLogin | Out-Null
+Connect-AzurePortal -AzureSubscriptionId $globalConfigs.AzSubscriptionId -TenantId $globalConfigs.TenantId -AppId $globalConfigs.AppId -AppSecret $globalConfigs.AppSecret | Out-Null
 
 $resourceGroup = Select-PortalAzureResourceGroup -SubscriptionId $globalConfigs.AzSubscriptionId -ResourceGroupName $globalConfigs.AzResourceGroupName
 
@@ -37,19 +36,20 @@ Write-Host "Total synced entities found: $($syncedEntities.Count)" -ForegroundCo
 
 $reprocessing = Sync-LocallyLogReport -WorkspaceId $WorkspaceId -SyncedEntities $syncedEntities
 
-if ($null -eq $reprocessing.suppliers -or $reprocessing.suppliers.Count -le 0) {
-    Write-Warning "No suppliers found in error logs to reprocess!"
-    continue
-}
-else {
-    Invoke-MiddlewareTriggerCancellation -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth | Out-Null
-
-    Invoke-SupplierMiddlewareTrigger -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth -Suppliers $reprocessing.suppliers | Out-Null
+if ($globalConfigs.ReprocessLogs -eq $true) {
+    if ($null -eq $reprocessing.suppliers -or $reprocessing.suppliers.Count -le 0) {
+        Write-Warning "No suppliers found in error logs to reprocess!"
+        continue
+    }
+    else {
+        Invoke-SupplierMiddlewareTrigger -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth -Suppliers $reprocessing.suppliers | Out-Null
     
-    $waitTime = $reprocessing.suppliers.Count * 3
-    Write-Host "Waiting for $waitTime seconds to allow the middleware to process the suppliers..." -ForegroundColor Yellow
-    Start-Sleep -Seconds $waitTime
+        $waitTime = $reprocessing.suppliers.Count * 5
+        Write-Host "Waiting for $waitTime seconds to allow the middleware to process the suppliers..." -ForegroundColor Yellow
+        Start-Sleep -Seconds $waitTime
     
-    Invoke-ProductOrderMiddlewareTrigger -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth -ProductOrders $reprocessing.productOrders | Out-Null
+        Invoke-ProductOrderMiddlewareTrigger -FunctionAppName $globalConfigs.logsFromEnvironment -Code $globalConfigs.middlewareInvocationCodeAuth -ProductOrders $reprocessing.productOrders | Out-Null
+    }
 }
 
+Write-Host "Log Report process completed!" -ForegroundColor Green
